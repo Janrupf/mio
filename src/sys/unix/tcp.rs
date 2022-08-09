@@ -88,7 +88,8 @@ pub(crate) fn accept(listener: &net::TcpListener) -> io::Result<(net::TcpStream,
         all(target_arch = "x86", target_os = "android"),
         target_os = "ios",
         target_os = "macos",
-        target_os = "redox"
+        target_os = "redox",
+        target_os = "espidf"
     ))]
     let stream = {
         syscall!(accept(
@@ -100,8 +101,12 @@ pub(crate) fn accept(listener: &net::TcpListener) -> io::Result<(net::TcpStream,
         .and_then(|s| {
             syscall!(fcntl(s.as_raw_fd(), libc::F_SETFD, libc::FD_CLOEXEC))?;
 
-            // See https://github.com/tokio-rs/mio/issues/1450
-            #[cfg(all(target_arch = "x86", target_os = "android"))]
+            #[cfg(any(
+                // See https://github.com/tokio-rs/mio/issues/1450
+                all(target_arch = "x86", target_os = "android"),
+                // espidf does not support accept4 at all, so we need to set nonblock here
+                target_os = "espidf"
+            ))]
             syscall!(fcntl(s.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK))?;
 
             Ok(s)

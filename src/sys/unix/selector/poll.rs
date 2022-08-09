@@ -379,7 +379,10 @@ impl SelectorState {
     }
 }
 
+#[cfg(not(target_os = "espidf"))]
 const READ_EVENTS: libc::c_short = libc::POLLIN | libc::POLLRDHUP;
+#[cfg(target_os = "espidf")]
+const READ_EVENTS: libc::c_short = libc::POLLIN;
 const WRITE_EVENTS: libc::c_short = libc::POLLOUT;
 
 /// Get the input poll events for the given event.
@@ -458,11 +461,18 @@ pub mod event {
         (event.events & libc::POLLERR) != 0
     }
 
+    #[cfg(not(target_os = "espidf"))]
     pub fn is_read_closed(event: &Event) -> bool {
         // Both halves of the socket have closed
         (event.events & libc::POLLHUP) != 0
             // Socket has received FIN or called shutdown(SHUT_RD)
             || ((event.events & libc::POLLIN) != 0 && (event.events & libc::POLLRDHUP) != 0)
+    }
+
+    #[cfg(target_os = "espidf")]
+    pub fn is_read_closed(event: &Event) -> bool {
+        // Both halves of the socket have closed
+        (event.events & libc::POLLHUP) != 0
     }
 
     pub fn is_write_closed(event: &Event) -> bool {
@@ -505,6 +515,7 @@ pub mod event {
             libc::POLLWRBAND,
             libc::POLLERR,
             libc::POLLHUP,
+            #[cfg(not(target_os = "espidf"))]
             libc::POLLRDHUP,
         );
 

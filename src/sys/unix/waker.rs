@@ -1,4 +1,4 @@
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "espidf"))]
 mod eventfd {
     use crate::sys::Selector;
     use crate::{Interest, Token};
@@ -23,7 +23,26 @@ mod eventfd {
         pub fn new(selector: &Selector, token: Token) -> io::Result<Waker> {
             let selector = selector.try_clone()?;
 
-            syscall!(eventfd(0, libc::EFD_CLOEXEC | libc::EFD_NONBLOCK)).and_then(|fd| {
+            #[cfg(target_os = "espidf")]
+            let fd = {
+                extern "C" {
+                    fn eventfd(initval: libc::c_uint, flags: libc::c_int) -> libc::c_int;
+                }
+
+                let fd = unsafe { eventfd(0, 0) };
+                if fd == -1 {
+                    // TODO: Switch back to syscall! once
+                    // https://github.com/rust-lang/libc/pull/2864 is published
+                    return Err(std::io::ErrorKind::Other.into());
+                }
+
+                Ok(fd)
+            };
+
+            #[cfg(not(target_os = "espidf"))]
+            let fd = { syscall!(eventfd(0, libc::EFD_CLOEXEC | libc::EFD_NONBLOCK)) };
+
+            fd.and_then(|fd| {
                 // Turn the file descriptor into a file first so we're ensured
                 // it's closed when dropped, e.g. when register below fails.
                 let file = unsafe { File::from_raw_fd(fd) };
@@ -71,7 +90,7 @@ mod eventfd {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "espidf"))]
 pub use self::eventfd::Waker;
 
 #[cfg(any(target_os = "freebsd", target_os = "ios", target_os = "macos"))]
