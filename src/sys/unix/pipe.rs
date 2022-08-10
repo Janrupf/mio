@@ -172,10 +172,12 @@ pub fn new() -> io::Result<(Sender, Receiver)> {
         }
 
         for fd in &fds {
-            let mut res = libc::fcntl(*fd, libc::F_SETFL, libc::O_NONBLOCK);
+            let res = libc::fcntl(*fd, libc::F_SETFL, libc::O_NONBLOCK);
             #[cfg(not(target_os = "espidf"))]
-            if res == 0 {
-                res = libc::fcntl(*fd, libc::F_SETFD, libc::FD_CLOEXEC);
+            let res = if res == 0 {
+                libc::fcntl(*fd, libc::F_SETFD, libc::FD_CLOEXEC)
+            } else {
+                res
             };
 
             if res != 0 {
