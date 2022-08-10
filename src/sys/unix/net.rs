@@ -41,6 +41,17 @@ pub(crate) fn new_socket(domain: libc::c_int, socket_type: libc::c_int) -> io::R
         .map(|_| socket)
     });
 
+    // esp idf doesn't have SOCK_NONBLOCK
+    #[cfg(target_os = "espidf")]
+    let socket = socket.and_then(|socket| {
+        syscall!(fcntl(socket, libc::F_SETFL, libc::O_NONBLOCK)).map_err(|e| {
+            let _ = syscall!(close(socket));
+            e
+        })?;
+
+        Ok(socket)
+    });
+
     // Darwin doesn't have SOCK_NONBLOCK or SOCK_CLOEXEC.
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     let socket = socket.and_then(|socket| {

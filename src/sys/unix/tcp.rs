@@ -99,6 +99,7 @@ pub(crate) fn accept(listener: &net::TcpListener) -> io::Result<(net::TcpStream,
         ))
         .map(|socket| unsafe { net::TcpStream::from_raw_fd(socket) })
         .and_then(|s| {
+            #[cfg(not(target_os = "espidf"))]
             syscall!(fcntl(s.as_raw_fd(), libc::F_SETFD, libc::FD_CLOEXEC))?;
 
             #[cfg(any(

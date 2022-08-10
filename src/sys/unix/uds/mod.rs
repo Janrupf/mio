@@ -93,8 +93,10 @@ cfg_os_poll! {
         #[cfg(any(target_os = "ios", target_os = "macos", target_os = "espidf"))]
         {
             syscall!(fcntl(fds[0], libc::F_SETFL, libc::O_NONBLOCK))?;
+            #[cfg(not(target_os = "espidf"))]
             syscall!(fcntl(fds[0], libc::F_SETFD, libc::FD_CLOEXEC))?;
             syscall!(fcntl(fds[1], libc::F_SETFL, libc::O_NONBLOCK))?;
+            #[cfg(not(target_os = "espidf"))]
             syscall!(fcntl(fds[1], libc::F_SETFD, libc::FD_CLOEXEC))?;
         }
         Ok(pair)
